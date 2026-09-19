@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+    .form-input,
+    .form-select,
+    .form-textarea {
+        @apply w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500;
+    }
+
+    .form-checkbox {
+        @apply rounded border-gray-300 text-indigo-600 focus:ring-indigo-500;
+    }
+
+    .btn-primary {
+        @apply rounded-md bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-60;
+    }
+
+    .btn-secondary {
+        @apply rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50;
+    }
+
+    .btn-danger {
+        @apply text-red-600 hover:underline;
+    }
+
+    .btn-link {
+        @apply text-indigo-600 hover:underline;
+    }
+}
