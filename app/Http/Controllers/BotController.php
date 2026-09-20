@@ -96,13 +96,14 @@ class BotController extends Controller
         return back()->with('success', "اتصال موفق بود. نام ربات: {$botName}");
     }
 
-    public function setWebhook(Bot $bot): RedirectResponse
+    public function setWebhook(Request $request, Bot $bot): RedirectResponse
     {
         if ($bot->platform !== 'telegram') {
             return back()->with('error', 'تنظیم Webhook فعلاً فقط برای تلگرام پشتیبانی می‌شود.');
         }
 
-        $url = url("/webhook/telegram/{$bot->id}");
+        $baseUrl = env('APP_URL') ?: $request->getSchemeAndHttpHost();
+        $url = rtrim($baseUrl, '/')."/webhook/telegram/{$bot->id}";
 
         try {
             $adapter = AdapterFactory::make($bot);

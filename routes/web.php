@@ -9,6 +9,9 @@ use App\Http\Controllers\ProcessFieldController;
 use App\Http\Controllers\ProcessStepController;
 use App\Http\Controllers\SubmissionController;
 use App\Http\Controllers\WebhookController;
+use App\Models\Bot;
+use App\Models\Process;
+use App\Models\Submission;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -23,7 +26,14 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 
     Route::get('/dashboard', function () {
-        return Inertia::render('Dashboard');
+        return Inertia::render('Dashboard', [
+            'stats' => [
+                'processesCount' => Process::where('is_current_version', true)->count(),
+                'botsCount' => Bot::count(),
+                'submissionsCount' => Submission::count(),
+                'submissionsTodayCount' => Submission::whereDate('started_at', today())->count(),
+            ],
+        ]);
     })->name('dashboard');
 
     Route::resource('bots', BotController::class)->except(['show']);
