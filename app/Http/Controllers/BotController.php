@@ -66,7 +66,28 @@ class BotController extends Controller
     public function testConnection(Request $request, Bot $bot): RedirectResponse
     {
         if ($bot->platform === 'rubika') {
-            return back()->with('error', 'اتصال روبیکا در دست توسعه است.');
+            try {
+                $response = Http::timeout(10)
+                    ->withHeaders(['Content-Type' => 'application/json'])
+                    ->post("https://botapi.rubika.ir/v3/{$bot->token}/getMe", []);
+            } catch (\Throwable $e) {
+                return back()->with('error', 'اتصال برقرار نشد: '.$e->getMessage());
+            }
+
+            $data = $response->json();
+
+            if (! $response->successful() || ($data['status'] ?? null) !== 'OK') {
+                return back()->with('error', 'توکن نامعتبر است یا اتصال ناموفق بود.');
+            }
+
+            $botName = $data['data']['bot']['bot_title'] ?? null;
+
+            $bot->update([
+                'status' => 'active',
+                'webhook_url' => url("/webhook/{$bot->platform}/{$bot->id}"),
+            ]);
+
+            return back()->with('success', "اتصال موفق بود. نام ربات: {$botName}");
         }
 
         $baseUrl = match ($bot->platform) {
@@ -98,7 +119,7 @@ class BotController extends Controller
 
     public function setWebhook(Request $request, Bot $bot): RedirectResponse
     {
-        if (! in_array($bot->platform, ['telegram', 'bale'], true)) {
+        if (! in_array($bot->platform, ['telegram', 'bale', 'rubika'], true)) {
             return back()->with('error', 'تنظیم Webhook برای این پلتفرم پشتیبانی نمی‌شود.');
         }
 
