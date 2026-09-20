@@ -7,6 +7,7 @@ use App\Http\Controllers\ProcessConditionGroupController;
 use App\Http\Controllers\ProcessConditionRuleController;
 use App\Http\Controllers\ProcessFieldController;
 use App\Http\Controllers\ProcessStepController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SubmissionController;
 use App\Http\Controllers\WebhookController;
 use App\Models\Bot;
@@ -72,4 +73,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/submissions', [SubmissionController::class, 'index'])->name('submissions.index');
     Route::get('/submissions/{submission}', [SubmissionController::class, 'show'])->name('submissions.show');
+
+    Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
+    Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
 });

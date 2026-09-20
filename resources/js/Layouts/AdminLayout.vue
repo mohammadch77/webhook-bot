@@ -12,6 +12,7 @@ const links = [
     { label: 'Bots', href: '/bots' },
     { label: 'فرآیندها', href: '/processes' },
     { label: 'ثبت‌ها', href: '/submissions' },
+    { label: 'تنظیمات', href: '/settings' },
 ];
 
 const logout = () => {
