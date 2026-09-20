@@ -2,6 +2,7 @@
 
 namespace App\Bot;
 
+use App\Bot\Adapters\BaleAdapter;
 use App\Bot\Adapters\TelegramAdapter;
 use App\Bot\Contracts\BotAdapter;
 use App\Models\Bot;
@@ -13,6 +14,7 @@ class AdapterFactory
     {
         return match ($bot->platform) {
             'telegram' => new TelegramAdapter($bot->token),
+            'bale' => new BaleAdapter($bot->token),
             default => throw new InvalidArgumentException("No adapter available for platform [{$bot->platform}]."),
         };
     }
