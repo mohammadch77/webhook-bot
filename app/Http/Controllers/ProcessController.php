@@ -6,11 +6,13 @@ use App\Http\Requests\StoreProcessRequest;
 use App\Http\Requests\UpdateProcessRequest;
 use App\Models\Bot;
 use App\Models\Process;
+use App\Models\ProcessConditionRule;
 use App\Models\ProcessField;
 use App\Models\ProcessStep;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -36,12 +38,13 @@ class ProcessController extends Controller
             'process' => null,
             'bots' => Bot::orderBy('name')->get(['id', 'name', 'platform']),
             'selectedBotIds' => [],
+            'steps' => [],
         ]);
     }
 
     public function store(StoreProcessRequest $request): RedirectResponse
     {
-        $process = DB::transaction(function () use ($request) {
+        DB::transaction(function () use ($request) {
             $process = Process::create([
                 'name' => $request->name,
                 'description' => $request->description,
@@ -51,7 +54,7 @@ class ProcessController extends Controller
 
             $process->syncBots($request->input('bot_ids', []));
 
-            return $process;
+            $this->saveSteps($process, $request->input('steps', []));
         });
 
         return redirect()->route('processes.index')->with('success', 'فرآیند با موفقیت ساخته شد.');
@@ -64,6 +67,7 @@ class ProcessController extends Controller
             'bots' => Bot::orderBy('name')->get(['id', 'name', 'platform']),
             'selectedBotIds' => $process->bots()->pluck('bots.id'),
             'hasSubmissions' => $process->submissions()->exists(),
+            'steps' => $process->steps()->with('fields')->orderBy('display_order')->get(),
         ]);
     }
 
@@ -72,13 +76,24 @@ class ProcessController extends Controller
         $hasSubmissions = $process->submissions()->exists();
 
         if (! $hasSubmissions) {
-            $process->update([
-                'name' => $request->name,
-                'description' => $request->description,
-                'is_active' => $request->boolean('is_active'),
-            ]);
+            DB::transaction(function () use ($request, $process) {
+                $process->update([
+                    'name' => $request->name,
+                    'description' => $request->description,
+                    'is_active' => $request->boolean('is_active'),
+                ]);
 
-            $process->syncBots($request->input('bot_ids', []));
+                $process->syncBots($request->input('bot_ids', []));
+
+                $stepIds = $process->steps()->pluck('id');
+                $fieldIds = ProcessField::whereIn('step_id', $stepIds)->pluck('id');
+
+                ProcessConditionRule::whereIn('field_id', $fieldIds)->delete();
+                ProcessField::whereIn('step_id', $stepIds)->forceDelete();
+                $process->steps()->forceDelete();
+
+                $this->saveSteps($process, $request->input('steps', []));
+            });
 
             return redirect()->route('processes.index')->with('success', 'فرآیند با موفقیت به‌روزرسانی شد.');
         }
@@ -96,32 +111,13 @@ class ProcessController extends Controller
                 'created_by_admin_id' => Auth::id(),
             ]);
 
-            foreach ($process->steps()->with('fields')->orderBy('display_order')->get() as $step) {
-                $newStep = ProcessStep::create([
-                    'process_id' => $newProcess->id,
-                    'step_key' => $step->step_key,
-                    'name' => $step->name,
-                    'display_order' => $step->display_order,
-                ]);
-
-                foreach ($step->fields as $field) {
-                    ProcessField::create([
-                        'step_id' => $newStep->id,
-                        'field_key' => $field->field_key,
-                        'label' => $field->label,
-                        'field_type' => $field->field_type,
-                        'is_required' => $field->is_required,
-                        'options' => $field->options,
-                        'display_order' => $field->display_order,
-                    ]);
-                }
-            }
-
             foreach ($process->processPlatforms as $platform) {
                 $newProcess->processPlatforms()->create(['bot_id' => $platform->bot_id]);
             }
 
             $newProcess->syncBots($request->input('bot_ids', []));
+
+            $this->saveSteps($newProcess, $request->input('steps', []));
         });
 
         return redirect()->route('processes.index')->with('success', 'نسخه جدید ساخته شد.');
@@ -138,13 +134,13 @@ class ProcessController extends Controller
         DB::transaction(function () use ($process) {
             $stepIds = $process->steps()->withTrashed()->pluck('id');
 
-            \App\Models\ProcessConditionRule::whereIn(
+            ProcessConditionRule::whereIn(
                 'group_id',
                 $process->conditionGroups()->pluck('id')
             )->delete();
             $process->conditionGroups()->delete();
 
-            \App\Models\ProcessField::whereIn('step_id', $stepIds)->withTrashed()->forceDelete();
+            ProcessField::whereIn('step_id', $stepIds)->withTrashed()->forceDelete();
             $process->steps()->withTrashed()->forceDelete();
 
             $process->processPlatforms()->delete();
@@ -152,5 +148,58 @@ class ProcessController extends Controller
         });
 
         return back()->with('success', 'فرآیند به‌طور کامل حذف شد.');
+    }
+
+    /**
+     * Create steps and their fields for a process, generating unique
+     * step_key/field_key values from the submitted names/labels.
+     */
+    private function saveSteps(Process $process, array $steps): void
+    {
+        $usedStepKeys = [];
+
+        foreach ($steps as $stepIndex => $stepData) {
+            $stepKey = $this->uniqueKey(Str::slug($stepData['name']), $usedStepKeys);
+            $usedStepKeys[] = $stepKey;
+
+            $step = $process->steps()->create([
+                'step_key' => $stepKey,
+                'name' => $stepData['name'],
+                'display_order' => $stepIndex,
+            ]);
+
+            $usedFieldKeys = [];
+
+            foreach ($stepData['fields'] ?? [] as $fieldIndex => $fieldData) {
+                $fieldKey = $this->uniqueKey(Str::slug($fieldData['label']), $usedFieldKeys);
+                $usedFieldKeys[] = $fieldKey;
+
+                $step->fields()->create([
+                    'field_key' => $fieldKey,
+                    'label' => $fieldData['label'],
+                    'field_type' => $fieldData['field_type'],
+                    'is_required' => $fieldData['field_type'] === 'boolean'
+                        ? false
+                        : (bool) ($fieldData['is_required'] ?? false),
+                    'options' => $fieldData['field_type'] === 'select'
+                        ? ($fieldData['options'] ?? [])
+                        : null,
+                    'display_order' => $fieldIndex,
+                ]);
+            }
+        }
+    }
+
+    private function uniqueKey(string $base, array $used): string
+    {
+        $key = $base;
+        $suffix = 1;
+
+        while (in_array($key, $used, true)) {
+            $key = "{$base}-{$suffix}";
+            $suffix++;
+        }
+
+        return $key;
     }
 }

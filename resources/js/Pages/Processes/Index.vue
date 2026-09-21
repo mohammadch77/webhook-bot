@@ -58,7 +58,6 @@ const destroyProcess = (process) => {
                             <span v-else>-</span>
                         </td>
                         <td class="px-4 py-2 space-x-2 space-x-reverse whitespace-nowrap">
-                            <Link :href="`/processes/${process.id}/steps`" class="btn-link">مراحل</Link>
                             <Link :href="`/processes/${process.id}/conditions`" class="btn-link">شرط‌ها</Link>
                             <Link :href="`/processes/${process.id}/edit`" class="btn-link">ویرایش</Link>
                             <button class="btn-danger" @click="destroyProcess(process)">حذف</button>
