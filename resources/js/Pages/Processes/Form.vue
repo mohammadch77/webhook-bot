@@ -17,7 +17,7 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
-    steps: {
+    fields: {
         type: Array,
         default: () => [],
     },
@@ -50,40 +50,24 @@ const toFormField = (field) => ({
     options: field?.options ? field.options.map((o) => ({ ...o })) : [],
 });
 
-const toFormStep = (step) => ({
-    name: step?.name ?? '',
-    fields: (step?.fields ?? []).map(toFormField),
-});
-
 const form = useForm({
     name: props.process?.name ?? '',
     description: props.process?.description ?? '',
     is_active: props.process?.is_active ?? true,
     bot_ids: [...props.selectedBotIds],
-    steps: props.steps.length ? props.steps.map(toFormStep) : [],
+    fields: props.fields.map(toFormField),
 });
 
 const slugPreview = computed(() => {
     return props.process?.process_key ?? 'پس از ذخیره تولید می‌شود';
 });
 
-const addStep = () => {
-    form.steps.push(toFormStep(null));
+const addField = () => {
+    form.fields.push(toFormField(null));
 };
 
-const removeStep = (index) => {
-    if (! confirm('این مرحله و همه فیلدهایش حذف شود؟')) {
-        return;
-    }
-    form.steps.splice(index, 1);
-};
-
-const addField = (step) => {
-    step.fields.push(toFormField(null));
-};
-
-const removeField = (step, index) => {
-    step.fields.splice(index, 1);
+const removeField = (index) => {
+    form.fields.splice(index, 1);
 };
 
 const onFieldTypeChange = (field) => {
@@ -165,92 +149,69 @@ const submit = () => {
             </div>
 
             <div class="bg-white rounded-md shadow-sm p-6 space-y-4">
-                <h2 class="text-lg font-semibold">مراحل</h2>
+                <h2 class="text-lg font-semibold">فیلدها</h2>
 
                 <div
-                    v-for="(step, stepIndex) in form.steps"
-                    :key="stepIndex"
-                    class="border border-gray-200 rounded-md p-4 space-y-3"
+                    v-for="(field, fieldIndex) in form.fields"
+                    :key="fieldIndex"
+                    class="flex flex-wrap items-start gap-2 bg-gray-50 rounded-md p-3"
                 >
-                    <div class="flex items-center gap-2">
-                        <span class="text-sm text-gray-500 whitespace-nowrap">مرحله {{ stepIndex + 1 }}:</span>
-                        <input v-model="step.name" type="text" class="form-input" placeholder="نام مرحله" required />
-                        <button type="button" class="btn-danger whitespace-nowrap" @click="removeStep(stepIndex)">
-                            حذف مرحله
-                        </button>
-                    </div>
-                    <div v-if="form.errors[`steps.${stepIndex}.name`]" class="text-red-600 text-sm">
-                        {{ form.errors[`steps.${stepIndex}.name`] }}
-                    </div>
-
-                    <div class="pr-4 space-y-3">
-                        <div class="text-sm font-medium text-gray-600">فیلدها</div>
-
+                    <div class="flex-1 min-w-[160px]">
+                        <input v-model="field.label" type="text" class="form-input" placeholder="برچسب" required />
                         <div
-                            v-for="(field, fieldIndex) in step.fields"
-                            :key="fieldIndex"
-                            class="flex flex-wrap items-start gap-2 bg-gray-50 rounded-md p-3"
+                            v-if="form.errors[`fields.${fieldIndex}.label`]"
+                            class="text-red-600 text-xs mt-1"
                         >
-                            <div class="flex-1 min-w-[160px]">
-                                <input v-model="field.label" type="text" class="form-input" placeholder="برچسب" required />
-                                <div
-                                    v-if="form.errors[`steps.${stepIndex}.fields.${fieldIndex}.label`]"
-                                    class="text-red-600 text-xs mt-1"
-                                >
-                                    {{ form.errors[`steps.${stepIndex}.fields.${fieldIndex}.label`] }}
-                                </div>
-                            </div>
-
-                            <select
-                                v-model="field.field_type"
-                                class="form-select"
-                                @change="onFieldTypeChange(field)"
-                            >
-                                <option v-for="(label, type) in typeLabels" :key="type" :value="type">
-                                    {{ label }}
-                                </option>
-                            </select>
-
-                            <label class="flex items-center gap-1 text-sm whitespace-nowrap">
-                                <input
-                                    v-model="field.is_required"
-                                    type="checkbox"
-                                    class="form-checkbox"
-                                    :disabled="field.field_type === 'boolean'"
-                                />
-                                اجباری
-                            </label>
-
-                            <button type="button" class="btn-danger" @click="removeField(step, fieldIndex)">حذف</button>
-
-                            <div v-if="field.field_type === 'select'" class="w-full space-y-2 mt-2">
-                                <label class="block text-xs font-medium text-gray-600">گزینه‌ها</label>
-                                <div v-for="(option, optionIndex) in field.options" :key="optionIndex" class="flex gap-2 items-center">
-                                    <input v-model="option.value" type="text" placeholder="value" class="form-input" />
-                                    <input v-model="option.label" type="text" placeholder="label" class="form-input" />
-                                    <button type="button" class="btn-danger" @click="removeOption(field, optionIndex)">
-                                        حذف گزینه
-                                    </button>
-                                </div>
-                                <button type="button" class="btn-secondary" @click="addOption(field)">
-                                    + افزودن گزینه
-                                </button>
-                                <div
-                                    v-if="form.errors[`steps.${stepIndex}.fields.${fieldIndex}.options`]"
-                                    class="text-red-600 text-xs"
-                                >
-                                    {{ form.errors[`steps.${stepIndex}.fields.${fieldIndex}.options`] }}
-                                </div>
-                            </div>
+                            {{ form.errors[`fields.${fieldIndex}.label`] }}
                         </div>
+                    </div>
 
-                        <button type="button" class="btn-secondary" @click="addField(step)">+ افزودن فیلد</button>
+                    <select
+                        v-model="field.field_type"
+                        class="form-select"
+                        @change="onFieldTypeChange(field)"
+                    >
+                        <option v-for="(label, type) in typeLabels" :key="type" :value="type">
+                            {{ label }}
+                        </option>
+                    </select>
+
+                    <label class="flex items-center gap-1 text-sm whitespace-nowrap">
+                        <input
+                            v-model="field.is_required"
+                            type="checkbox"
+                            class="form-checkbox"
+                            :disabled="field.field_type === 'boolean'"
+                        />
+                        اجباری
+                    </label>
+
+                    <button type="button" class="btn-danger" @click="removeField(fieldIndex)">حذف</button>
+
+                    <div v-if="field.field_type === 'select'" class="w-full space-y-2 mt-2">
+                        <label class="block text-xs font-medium text-gray-600">گزینه‌ها</label>
+                        <div v-for="(option, optionIndex) in field.options" :key="optionIndex" class="flex gap-2 items-center">
+                            <input v-model="option.value" type="text" placeholder="value" class="form-input" />
+                            <input v-model="option.label" type="text" placeholder="label" class="form-input" />
+                            <button type="button" class="btn-danger" @click="removeOption(field, optionIndex)">
+                                حذف گزینه
+                            </button>
+                        </div>
+                        <button type="button" class="btn-secondary" @click="addOption(field)">
+                            + افزودن گزینه
+                        </button>
+                        <div
+                            v-if="form.errors[`fields.${fieldIndex}.options`]"
+                            class="text-red-600 text-xs"
+                        >
+                            {{ form.errors[`fields.${fieldIndex}.options`] }}
+                        </div>
                     </div>
                 </div>
 
-                <div v-if="form.steps.length === 0" class="text-sm text-gray-400">هیچ مرحله‌ای ثبت نشده است.</div>
+                <div v-if="form.fields.length === 0" class="text-sm text-gray-400">هیچ فیلدی ثبت نشده است.</div>
 
-                <button type="button" class="btn-secondary" @click="addStep">+ افزودن مرحله</button>
+                <button type="button" class="btn-secondary" @click="addField">+ افزودن فیلد</button>
             </div>
 
             <div class="flex gap-2">

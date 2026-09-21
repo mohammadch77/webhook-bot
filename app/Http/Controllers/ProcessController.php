@@ -6,7 +6,6 @@ use App\Http\Requests\StoreProcessRequest;
 use App\Http\Requests\UpdateProcessRequest;
 use App\Models\Bot;
 use App\Models\Process;
-use App\Models\ProcessConditionRule;
 use App\Models\ProcessField;
 use App\Models\ProcessStep;
 use Illuminate\Http\RedirectResponse;
@@ -38,7 +37,7 @@ class ProcessController extends Controller
             'process' => null,
             'bots' => Bot::orderBy('name')->get(['id', 'name', 'platform']),
             'selectedBotIds' => [],
-            'steps' => [],
+            'fields' => [],
         ]);
     }
 
@@ -54,7 +53,7 @@ class ProcessController extends Controller
 
             $process->syncBots($request->input('bot_ids', []));
 
-            $this->saveSteps($process, $request->input('steps', []));
+            $this->saveFields($process, $request->input('fields', []));
         });
 
         return redirect()->route('processes.index')->with('success', 'فرآیند با موفقیت ساخته شد.');
@@ -62,12 +61,15 @@ class ProcessController extends Controller
 
     public function edit(Process $process): Response
     {
+        $fields = $process->steps()->with('fields')->orderBy('display_order')->get()
+            ->flatMap(fn (ProcessStep $step) => $step->fields);
+
         return Inertia::render('Processes/Form', [
             'process' => $process,
             'bots' => Bot::orderBy('name')->get(['id', 'name', 'platform']),
             'selectedBotIds' => $process->bots()->pluck('bots.id'),
             'hasSubmissions' => $process->submissions()->exists(),
-            'steps' => $process->steps()->with('fields')->orderBy('display_order')->get(),
+            'fields' => $fields->values(),
         ]);
     }
 
@@ -86,13 +88,11 @@ class ProcessController extends Controller
                 $process->syncBots($request->input('bot_ids', []));
 
                 $stepIds = $process->steps()->pluck('id');
-                $fieldIds = ProcessField::whereIn('step_id', $stepIds)->pluck('id');
 
-                ProcessConditionRule::whereIn('field_id', $fieldIds)->delete();
                 ProcessField::whereIn('step_id', $stepIds)->forceDelete();
                 $process->steps()->forceDelete();
 
-                $this->saveSteps($process, $request->input('steps', []));
+                $this->saveFields($process, $request->input('fields', []));
             });
 
             return redirect()->route('processes.index')->with('success', 'فرآیند با موفقیت به‌روزرسانی شد.');
@@ -117,7 +117,7 @@ class ProcessController extends Controller
 
             $newProcess->syncBots($request->input('bot_ids', []));
 
-            $this->saveSteps($newProcess, $request->input('steps', []));
+            $this->saveFields($newProcess, $request->input('fields', []));
         });
 
         return redirect()->route('processes.index')->with('success', 'نسخه جدید ساخته شد.');
@@ -134,12 +134,6 @@ class ProcessController extends Controller
         DB::transaction(function () use ($process) {
             $stepIds = $process->steps()->withTrashed()->pluck('id');
 
-            ProcessConditionRule::whereIn(
-                'group_id',
-                $process->conditionGroups()->pluck('id')
-            )->delete();
-            $process->conditionGroups()->delete();
-
             ProcessField::whereIn('step_id', $stepIds)->withTrashed()->forceDelete();
             $process->steps()->withTrashed()->forceDelete();
 
@@ -151,42 +145,35 @@ class ProcessController extends Controller
     }
 
     /**
-     * Create steps and their fields for a process, generating unique
-     * step_key/field_key values from the submitted names/labels.
+     * Create a single default step ("فرم") and attach all submitted fields to it,
+     * generating unique field_key values from the submitted labels.
      */
-    private function saveSteps(Process $process, array $steps): void
+    private function saveFields(Process $process, array $fields): void
     {
-        $usedStepKeys = [];
+        $step = $process->steps()->create([
+            'step_key' => 'form',
+            'name' => 'فرم',
+            'display_order' => 0,
+        ]);
 
-        foreach ($steps as $stepIndex => $stepData) {
-            $stepKey = $this->uniqueKey(Str::slug($stepData['name']), $usedStepKeys);
-            $usedStepKeys[] = $stepKey;
+        $usedFieldKeys = [];
 
-            $step = $process->steps()->create([
-                'step_key' => $stepKey,
-                'name' => $stepData['name'],
-                'display_order' => $stepIndex,
+        foreach ($fields as $fieldIndex => $fieldData) {
+            $fieldKey = $this->uniqueKey(Str::slug($fieldData['label']), $usedFieldKeys);
+            $usedFieldKeys[] = $fieldKey;
+
+            $step->fields()->create([
+                'field_key' => $fieldKey,
+                'label' => $fieldData['label'],
+                'field_type' => $fieldData['field_type'],
+                'is_required' => $fieldData['field_type'] === 'boolean'
+                    ? false
+                    : (bool) ($fieldData['is_required'] ?? false),
+                'options' => $fieldData['field_type'] === 'select'
+                    ? ($fieldData['options'] ?? [])
+                    : null,
+                'display_order' => $fieldIndex,
             ]);
-
-            $usedFieldKeys = [];
-
-            foreach ($stepData['fields'] ?? [] as $fieldIndex => $fieldData) {
-                $fieldKey = $this->uniqueKey(Str::slug($fieldData['label']), $usedFieldKeys);
-                $usedFieldKeys[] = $fieldKey;
-
-                $step->fields()->create([
-                    'field_key' => $fieldKey,
-                    'label' => $fieldData['label'],
-                    'field_type' => $fieldData['field_type'],
-                    'is_required' => $fieldData['field_type'] === 'boolean'
-                        ? false
-                        : (bool) ($fieldData['is_required'] ?? false),
-                    'options' => $fieldData['field_type'] === 'select'
-                        ? ($fieldData['options'] ?? [])
-                        : null,
-                    'display_order' => $fieldIndex,
-                ]);
-            }
         }
     }
 

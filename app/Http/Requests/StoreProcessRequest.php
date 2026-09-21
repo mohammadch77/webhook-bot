@@ -19,15 +19,13 @@ class StoreProcessRequest extends FormRequest
             'is_active' => ['boolean'],
             'bot_ids' => ['array'],
             'bot_ids.*' => ['uuid', 'exists:bots,id'],
-            'steps' => ['array'],
-            'steps.*.name' => ['required', 'string', 'max:100'],
-            'steps.*.fields' => ['array'],
-            'steps.*.fields.*.label' => ['required', 'string', 'max:150'],
-            'steps.*.fields.*.field_type' => ['required', 'in:text,number,phone,textarea,select,boolean,file,image,date'],
-            'steps.*.fields.*.is_required' => ['boolean'],
-            'steps.*.fields.*.options' => ['nullable', 'array'],
-            'steps.*.fields.*.options.*.value' => ['required_with:steps.*.fields.*.options', 'string', 'max:100'],
-            'steps.*.fields.*.options.*.label' => ['required_with:steps.*.fields.*.options', 'string', 'max:100'],
+            'fields' => ['array'],
+            'fields.*.label' => ['required', 'string', 'max:150'],
+            'fields.*.field_type' => ['required', 'in:text,number,phone,textarea,select,boolean,file,image,date'],
+            'fields.*.is_required' => ['boolean'],
+            'fields.*.options' => ['nullable', 'array'],
+            'fields.*.options.*.value' => ['required_with:fields.*.options', 'string', 'max:100'],
+            'fields.*.options.*.label' => ['required_with:fields.*.options', 'string', 'max:100'],
         ];
     }
 }
