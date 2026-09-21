@@ -2,7 +2,7 @@
 
 namespace App\Bot\Engines;
 
-use App\Bot\Contracts\BotAdapter;
+use App\Bot\AdapterFactory;
 use App\Models\Bot;
 use App\Models\Setting;
 use App\Models\Submission;
@@ -10,18 +10,49 @@ use Illuminate\Support\Facades\Log;
 
 class NotificationEngine
 {
-    public function notifyAdmin(Submission $submission, Bot $bot, BotAdapter $adapter): void
+    protected const PLATFORMS = ['telegram', 'bale', 'rubika'];
+
+    public function notifyAdmin(Submission $submission): void
     {
-        $adminChatId = Setting::get('admin_telegram_chat_id', config('bot.admin_telegram_chat_id'));
+        $text = $this->buildMessage($submission);
 
-        if (! $adminChatId) {
-            Log::info('NotificationEngine: admin_telegram_chat_id not configured, skipping notification.', [
-                'submission_id' => $submission->id,
-            ]);
+        foreach (self::PLATFORMS as $platform) {
+            $chatId = Setting::get("admin_{$platform}_chat_id", config("bot.admin_{$platform}_chat_id"));
 
-            return;
+            if (! $chatId) {
+                Log::info("NotificationEngine: admin_{$platform}_chat_id not configured, skipping notification.", [
+                    'submission_id' => $submission->id,
+                    'platform' => $platform,
+                ]);
+
+                continue;
+            }
+
+            $bot = Bot::where('platform', $platform)->where('status', 'active')->first()
+                ?? Bot::where('platform', $platform)->first();
+
+            if (! $bot) {
+                Log::info("NotificationEngine: no bot configured for platform [{$platform}], skipping notification.", [
+                    'submission_id' => $submission->id,
+                ]);
+
+                continue;
+            }
+
+            try {
+                $adapter = AdapterFactory::make($bot);
+                $adapter->sendMessage($chatId, $text);
+            } catch (\Throwable $e) {
+                Log::error("NotificationEngine: failed to notify admin on platform [{$platform}].", [
+                    'submission_id' => $submission->id,
+                    'message' => $e->getMessage(),
+                ]);
+            }
         }
+    }
 
+    protected function buildMessage(Submission $submission): string
+    {
         $submission->loadMissing(['process', 'values.field.step']);
 
         $answers = $submission->values
@@ -32,7 +63,7 @@ class NotificationEngine
             ->map(fn ($value) => "{$value->field?->label}: {$value->value}")
             ->implode("\n");
 
-        $text = implode("\n", [
+        return implode("\n", [
             '✅ فرآیند جدید تکمیل شد',
             '',
             "فرآیند: {$submission->process?->name}",
@@ -44,7 +75,5 @@ class NotificationEngine
             '--- پاسخ‌ها ---',
             $answers,
         ]);
-
-        $adapter->sendMessage($adminChatId, $text);
     }
 }

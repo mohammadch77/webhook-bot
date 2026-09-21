@@ -8,6 +8,8 @@ const props = defineProps({
 
 const form = useForm({
     admin_telegram_chat_id: props.settings?.admin_telegram_chat_id ?? '',
+    admin_bale_chat_id: props.settings?.admin_bale_chat_id ?? '',
+    admin_rubika_chat_id: props.settings?.admin_rubika_chat_id ?? '',
 });
 
 const submit = () => {
@@ -26,6 +28,22 @@ const submit = () => {
                 <p class="text-gray-500 text-sm mt-1">برای پیدا کردن آیدی خود به @userinfobot پیام بدید</p>
                 <div v-if="form.errors.admin_telegram_chat_id" class="text-red-600 text-sm mt-1">
                     {{ form.errors.admin_telegram_chat_id }}
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1">آیدی بله ادمین برای دریافت اعلان‌ها</label>
+                <input v-model="form.admin_bale_chat_id" type="text" class="form-input" />
+                <div v-if="form.errors.admin_bale_chat_id" class="text-red-600 text-sm mt-1">
+                    {{ form.errors.admin_bale_chat_id }}
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1">آیدی روبیکا ادمین برای دریافت اعلان‌ها</label>
+                <input v-model="form.admin_rubika_chat_id" type="text" class="form-input" />
+                <div v-if="form.errors.admin_rubika_chat_id" class="text-red-600 text-sm mt-1">
+                    {{ form.errors.admin_rubika_chat_id }}
                 </div>
             </div>
 

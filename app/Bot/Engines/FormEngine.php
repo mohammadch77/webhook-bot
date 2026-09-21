@@ -85,7 +85,7 @@ class FormEngine
         if (! $nextField) {
             $this->sessionEngine->complete($session);
             $adapter->sendMessage($msg->chatId, 'فرآیند با موفقیت تکمیل شد. متشکریم!');
-            $this->notificationEngine->notifyAdmin($session->submission, $bot, $adapter);
+            $this->notificationEngine->notifyAdmin($session->submission);
 
             return;
         }
