@@ -6,6 +6,8 @@ use App\Http\Requests\StoreProcessRequest;
 use App\Http\Requests\UpdateProcessRequest;
 use App\Models\Bot;
 use App\Models\Process;
+use App\Models\ProcessField;
+use App\Models\ProcessStep;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -93,6 +95,31 @@ class ProcessController extends Controller
                 'is_active' => $request->boolean('is_active'),
                 'created_by_admin_id' => Auth::id(),
             ]);
+
+            foreach ($process->steps()->with('fields')->orderBy('display_order')->get() as $step) {
+                $newStep = ProcessStep::create([
+                    'process_id' => $newProcess->id,
+                    'step_key' => $step->step_key,
+                    'name' => $step->name,
+                    'display_order' => $step->display_order,
+                ]);
+
+                foreach ($step->fields as $field) {
+                    ProcessField::create([
+                        'step_id' => $newStep->id,
+                        'field_key' => $field->field_key,
+                        'label' => $field->label,
+                        'field_type' => $field->field_type,
+                        'is_required' => $field->is_required,
+                        'options' => $field->options,
+                        'display_order' => $field->display_order,
+                    ]);
+                }
+            }
+
+            foreach ($process->processPlatforms as $platform) {
+                $newProcess->processPlatforms()->create(['bot_id' => $platform->bot_id]);
+            }
 
             $newProcess->syncBots($request->input('bot_ids', []));
         });
