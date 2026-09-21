@@ -94,16 +94,16 @@ class RubikaAdapter implements BotAdapter
         $update = $payload['update'] ?? $payload;
         $this->lastPayload = $update;
 
-        // TODO: real payload shape for callback buttons (type = "CallbackQuery") not confirmed yet.
         $message = $update['new_message'] ?? [];
         $chatId = (string) ($update['chat_id'] ?? '');
+        $buttonId = $message['aux_data']['button_id'] ?? null;
 
         return new IncomingMessage(
             chatId: $chatId,
             userId: (string) ($message['sender_id'] ?? $chatId),
             username: null,
-            text: (string) ($message['text'] ?? ''),
-            type: 'text',
+            text: $buttonId !== null ? (string) $buttonId : (string) ($message['text'] ?? ''),
+            type: $buttonId !== null ? 'callback' : 'text',
             platform: 'rubika',
             messageId: isset($message['message_id']) ? (string) $message['message_id'] : null,
         );
