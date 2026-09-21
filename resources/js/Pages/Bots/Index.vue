@@ -65,7 +65,7 @@ const destroyBot = (bot) => {
                         <td class="px-4 py-2 space-x-2 space-x-reverse whitespace-nowrap">
                             <button class="text-blue-600 hover:underline" @click="testConnection(bot)">تست اتصال</button>
                             <button
-                                v-if="bot.platform === 'telegram' || bot.platform === 'bale'"
+                                v-if="bot.platform === 'telegram' || bot.platform === 'bale' || bot.platform === 'rubika'"
                                 class="text-teal-600 hover:underline"
                                 @click="setWebhook(bot)"
                             >

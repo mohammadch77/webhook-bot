@@ -9,6 +9,7 @@ use App\Models\Bot;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -68,15 +69,23 @@ class BotController extends Controller
         if ($bot->platform === 'rubika') {
             try {
                 $response = Http::timeout(10)
-                    ->withHeaders(['Content-Type' => 'application/json'])
-                    ->post("https://botapi.rubika.ir/v3/{$bot->token}/getMe", []);
+                    ->withBody('{}', 'application/json')
+                    ->post("https://botapi.rubika.ir/v3/{$bot->token}/getMe");
             } catch (\Throwable $e) {
                 return back()->with('error', 'اتصال برقرار نشد: '.$e->getMessage());
             }
 
             $data = $response->json();
 
-            if (! $response->successful() || ($data['status'] ?? null) !== 'OK') {
+            Log::info('Rubika getMe response', [
+                'status_code' => $response->status(),
+                'body' => $response->body(),
+                'json' => $data,
+            ]);
+
+            $status = strtoupper((string) ($data['status'] ?? ''));
+
+            if (! $response->successful() || $status !== 'OK') {
                 return back()->with('error', 'توکن نامعتبر است یا اتصال ناموفق بود.');
             }
 
