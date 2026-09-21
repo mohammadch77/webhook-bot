@@ -11,6 +11,7 @@ class IncomingMessage
         public string $text,
         public string $type,
         public string $platform,
+        public ?string $messageId = null,
     ) {
     }
 }

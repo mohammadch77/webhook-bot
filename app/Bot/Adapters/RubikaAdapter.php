@@ -41,6 +41,12 @@ class RubikaAdapter implements BotAdapter
         $this->call(fn () => $this->client->chatId($chatId)->text($text)->inlineKeypad($keypad)->sendMessage());
     }
 
+    public function editMessage(string $chatId, string $messageId, string $text): void
+    {
+        $this->call(fn () => $this->client->chatId($chatId)->messageId($messageId)->text($text)->editMessageText());
+        $this->call(fn () => $this->client->chatId($chatId)->messageId($messageId)->inlineKeypad(new Keypad([]))->editMessageKeypad());
+    }
+
     public function getUser(string $chatId): array
     {
         $message = $this->lastPayload['new_message']
@@ -84,6 +90,7 @@ class RubikaAdapter implements BotAdapter
                 text: (string) ($inline['aux_data']['button_id'] ?? ''),
                 type: 'callback',
                 platform: 'rubika',
+                messageId: isset($inline['message_id']) ? (string) $inline['message_id'] : null,
             );
         }
 

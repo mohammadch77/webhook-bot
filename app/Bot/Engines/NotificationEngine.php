@@ -14,40 +14,47 @@ class NotificationEngine
 
     public function notifyAdmin(Submission $submission): void
     {
-        $text = $this->buildMessage($submission);
+        $platform = $submission->platform;
 
-        foreach (self::PLATFORMS as $platform) {
-            $chatId = Setting::get("admin_{$platform}_chat_id", config("bot.admin_{$platform}_chat_id"));
+        if (! in_array($platform, self::PLATFORMS, true)) {
+            return;
+        }
 
-            if (! $chatId) {
-                Log::info("NotificationEngine: admin_{$platform}_chat_id not configured, skipping notification.", [
-                    'submission_id' => $submission->id,
-                    'platform' => $platform,
-                ]);
+        $chatId = Setting::get("admin_{$platform}_chat_id", config("bot.admin_{$platform}_chat_id"));
 
-                continue;
-            }
+        if (! $chatId) {
+            Log::info("NotificationEngine: admin_{$platform}_chat_id not configured, skipping notification.", [
+                'submission_id' => $submission->id,
+                'platform' => $platform,
+            ]);
 
-            $bot = Bot::where('platform', $platform)->where('status', 'active')->first()
-                ?? Bot::where('platform', $platform)->first();
+            return;
+        }
 
-            if (! $bot) {
-                Log::info("NotificationEngine: no bot configured for platform [{$platform}], skipping notification.", [
-                    'submission_id' => $submission->id,
-                ]);
+        $bot = Bot::where('platform', $platform)->where('status', 'active')->first()
+            ?? Bot::where('platform', $platform)->first();
 
-                continue;
-            }
+        if (! $bot) {
+            Log::info("NotificationEngine: no bot configured for platform [{$platform}], skipping notification.", [
+                'submission_id' => $submission->id,
+            ]);
 
-            try {
-                $adapter = AdapterFactory::make($bot);
-                $adapter->sendMessage($chatId, $text);
-            } catch (\Throwable $e) {
-                Log::error("NotificationEngine: failed to notify admin on platform [{$platform}].", [
-                    'submission_id' => $submission->id,
-                    'message' => $e->getMessage(),
-                ]);
-            }
+            return;
+        }
+
+        try {
+            $adapter = AdapterFactory::make($bot);
+            $text = $this->buildMessage($submission);
+
+            $adapter->sendKeyboard($chatId, $text, [
+                ['value' => "approve:{$submission->id}", 'label' => '✅ تأیید'],
+                ['value' => "reject:{$submission->id}", 'label' => '❌ رد'],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error("NotificationEngine: failed to notify admin on platform [{$platform}].", [
+                'submission_id' => $submission->id,
+                'message' => $e->getMessage(),
+            ]);
         }
     }
 

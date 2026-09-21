@@ -45,6 +45,16 @@ class TelegramAdapter implements BotAdapter
         ]);
     }
 
+    public function editMessage(string $chatId, string $messageId, string $text): void
+    {
+        $this->call('editMessageText', [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'text' => $text,
+            'reply_markup' => json_encode(['inline_keyboard' => []]),
+        ]);
+    }
+
     public function getUser(string $chatId): array
     {
         $from = $this->lastPayload['message']['from']
@@ -81,6 +91,7 @@ class TelegramAdapter implements BotAdapter
                 text: (string) ($callback['data'] ?? ''),
                 type: 'callback',
                 platform: 'telegram',
+                messageId: isset($callback['message']['message_id']) ? (string) $callback['message']['message_id'] : null,
             );
         }
 

@@ -22,6 +22,7 @@ class Submission extends Model
         'status',
         'started_at',
         'completed_at',
+        'admin_action',
     ];
 
     protected function casts(): array

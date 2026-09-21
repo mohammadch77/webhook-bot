@@ -15,9 +15,16 @@ class FakeAdapter implements BotAdapter
 
     public array $sentKeyboards = [];
 
+    public array $editedMessages = [];
+
     public function sendMessage(string $chatId, string $text): void
     {
         $this->sentMessages[] = ['chatId' => $chatId, 'text' => $text];
+    }
+
+    public function editMessage(string $chatId, string $messageId, string $text): void
+    {
+        $this->editedMessages[] = ['chatId' => $chatId, 'messageId' => $messageId, 'text' => $text];
     }
 
     public function sendKeyboard(string $chatId, string $text, array $buttons): void
@@ -44,6 +51,7 @@ class FakeAdapter implements BotAdapter
             text: (string) $payload['text'],
             type: $payload['type'] ?? 'text',
             platform: 'telegram',
+            messageId: isset($payload['messageId']) ? (string) $payload['messageId'] : null,
         );
     }
 }

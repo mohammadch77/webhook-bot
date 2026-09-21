@@ -9,6 +9,11 @@ interface BotAdapter
     public function sendMessage(string $chatId, string $text): void;
 
     /**
+     * Edit an already-sent message's text and strip its inline keyboard.
+     */
+    public function editMessage(string $chatId, string $messageId, string $text): void;
+
+    /**
      * @param  array<int, array{value: string, label: string}>  $buttons
      */
     public function sendKeyboard(string $chatId, string $text, array $buttons): void;
