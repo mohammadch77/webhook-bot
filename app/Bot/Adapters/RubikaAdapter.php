@@ -4,6 +4,7 @@ namespace App\Bot\Adapters;
 
 use App\Bot\Contracts\BotAdapter;
 use App\Bot\DTOs\IncomingMessage;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RubikaPhp\Core\Bot;
 use RubikaPhp\Enums\ButtonTypeEnum;
@@ -63,13 +64,26 @@ class RubikaAdapter implements BotAdapter
     public function setWebhook(string $url): bool
     {
         try {
-            $response = $this->client->updateBotEndpoints($url, 'ReceiveUpdate');
-
-            return ($response['status'] ?? null) === 'OK';
-        } catch (\Throwable $e) {
-            Log::error('Rubika API call exception: updateBotEndpoints', [
-                'message' => $e->getMessage(),
+            Log::info('Rubika setWebhook sending', [
+                'url_to_set' => $url,
+                'token_length' => strlen($this->token),
+                'endpoint' => "https://botapi.rubika.ir/v3/{$this->token}/updateBotEndpoints",
             ]);
+
+            $response = Http::withHeaders([
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json',
+            ])->post(
+                "https://botapi.rubika.ir/v3/{$this->token}/updateBotEndpoints",
+                ['url' => $url, 'type' => 'ReceiveUpdate']
+            );
+
+            $data = $response->json();
+            Log::info('Rubika setWebhook direct response', ['data' => $data]);
+
+            return isset($data['status']) && strtoupper($data['status']) === 'OK';
+        } catch (\Exception $e) {
+            Log::error('Rubika setWebhook error', ['error' => $e->getMessage()]);
 
             return false;
         }
@@ -80,20 +94,7 @@ class RubikaAdapter implements BotAdapter
         $update = $payload['update'] ?? $payload;
         $this->lastPayload = $update;
 
-        if (isset($update['inline_message'])) {
-            $inline = $update['inline_message'];
-
-            return new IncomingMessage(
-                chatId: (string) ($inline['chat_id'] ?? ''),
-                userId: (string) ($inline['sender_id'] ?? ''),
-                username: null,
-                text: (string) ($inline['aux_data']['button_id'] ?? ''),
-                type: 'callback',
-                platform: 'rubika',
-                messageId: isset($inline['message_id']) ? (string) $inline['message_id'] : null,
-            );
-        }
-
+        // TODO: real payload shape for callback buttons (type = "CallbackQuery") not confirmed yet.
         $message = $update['new_message'] ?? [];
         $chatId = (string) ($update['chat_id'] ?? '');
 
@@ -104,6 +105,7 @@ class RubikaAdapter implements BotAdapter
             text: (string) ($message['text'] ?? ''),
             type: 'text',
             platform: 'rubika',
+            messageId: isset($message['message_id']) ? (string) $message['message_id'] : null,
         );
     }
 
