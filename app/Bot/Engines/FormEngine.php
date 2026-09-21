@@ -3,7 +3,6 @@
 namespace App\Bot\Engines;
 
 use App\Bot\Contracts\BotAdapter;
-use App\Bot\DTOs\ConditionResult;
 use App\Bot\DTOs\IncomingMessage;
 use App\Models\Bot;
 use App\Models\Process;
@@ -15,7 +14,6 @@ class FormEngine
     public function __construct(
         protected SessionEngine $sessionEngine,
         protected ValidationEngine $validationEngine,
-        protected ConditionEngine $conditionEngine,
         protected NotificationEngine $notificationEngine,
     ) {
     }
@@ -61,15 +59,6 @@ class FormEngine
             ['value' => $msg->text],
         );
 
-        $conditionResult = $this->conditionEngine->evaluate($session->process, $session->submission);
-
-        if ($conditionResult && $conditionResult->action === 'stop') {
-            $this->sessionEngine->expire($session);
-            $adapter->sendMessage($msg->chatId, $conditionResult->stopMessage ?? 'فرآیند متوقف شد.');
-
-            return;
-        }
-
         $nextField = $field->step->fields()
             ->where('display_order', '>', $field->display_order)
             ->orderBy('display_order')
@@ -78,7 +67,7 @@ class FormEngine
         $nextStep = null;
 
         if (! $nextField) {
-            $nextStep = $this->resolveNextStep($session->process, $field->step, $conditionResult);
+            $nextStep = $this->resolveNextStep($session->process, $field->step);
             $nextField = $nextStep?->fields()->orderBy('display_order')->first();
         }
 
@@ -100,30 +89,12 @@ class FormEngine
         $this->sendField($msg->chatId, $nextField, $adapter);
     }
 
-    protected function resolveNextStep(Process $process, ProcessStep $currentStep, ?ConditionResult $conditionResult): ?ProcessStep
+    protected function resolveNextStep(Process $process, ProcessStep $currentStep): ?ProcessStep
     {
-        if ($conditionResult && in_array($conditionResult->action, ['jump_to_step', 'show_step'], true) && $conditionResult->targetStepId) {
-            return $process->steps()->find($conditionResult->targetStepId);
-        }
-
-        $candidate = $process->steps()
+        return $process->steps()
             ->where('display_order', '>', $currentStep->display_order)
             ->orderBy('display_order')
             ->first();
-
-        if (
-            $conditionResult
-            && $conditionResult->action === 'skip_step'
-            && $candidate
-            && $candidate->id === $conditionResult->targetStepId
-        ) {
-            $candidate = $process->steps()
-                ->where('display_order', '>', $candidate->display_order)
-                ->orderBy('display_order')
-                ->first();
-        }
-
-        return $candidate;
     }
 
     public function sendField(string $chatId, ProcessField $field, BotAdapter $adapter): void

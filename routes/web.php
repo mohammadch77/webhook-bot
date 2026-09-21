@@ -3,8 +3,6 @@
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\BotController;
 use App\Http\Controllers\ProcessController;
-use App\Http\Controllers\ProcessConditionGroupController;
-use App\Http\Controllers\ProcessConditionRuleController;
 use App\Http\Controllers\ProcessFieldController;
 use App\Http\Controllers\ProcessStepController;
 use App\Http\Controllers\SettingsController;
@@ -63,15 +61,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{field}', [ProcessFieldController::class, 'destroy'])->name('destroy');
     });
 
-    Route::prefix('processes/{process}/conditions')->name('processes.conditions.')->group(function () {
-        Route::get('/', [ProcessConditionGroupController::class, 'index'])->name('index');
-        Route::post('/groups', [ProcessConditionGroupController::class, 'store'])->name('groups.store');
-        Route::delete('/groups/{group}', [ProcessConditionGroupController::class, 'destroy'])->name('groups.destroy');
-        Route::post('/groups/{group}/rules', [ProcessConditionRuleController::class, 'store'])->name('groups.rules.store');
-        Route::delete('/groups/{group}/rules/{rule}', [ProcessConditionRuleController::class, 'destroy'])->name('groups.rules.destroy');
-    });
-
-    Route::get('/submissions', [SubmissionController::class, 'index'])->name('submissions.index');
+Route::get('/submissions', [SubmissionController::class, 'index'])->name('submissions.index');
     Route::get('/submissions/{submission}', [SubmissionController::class, 'show'])->name('submissions.show');
 
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
