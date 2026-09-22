@@ -30,7 +30,7 @@ class RubikaPolling extends Command
                 $this->pollBot($bot, $dispatcher);
             }
 
-            sleep(2);
+            sleep(5);
         }
     }
 
@@ -83,6 +83,13 @@ class RubikaPolling extends Command
 
             Cache::put($cacheKey, $lastUpdateId);
         } catch (\Throwable $e) {
+            if (str_contains($e->getMessage(), 'TOO_REQUESTS')) {
+                Log::warning('Rubika rate limited, waiting 30s');
+                sleep(30);
+
+                return;
+            }
+
             Log::error('Rubika polling: failed to poll bot', [
                 'bot_id' => $bot->id,
                 'error' => $e->getMessage(),
