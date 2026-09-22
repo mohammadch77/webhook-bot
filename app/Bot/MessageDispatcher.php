@@ -30,21 +30,9 @@ class MessageDispatcher
             return;
         }
 
-        $processId = $this->extractProcessSelection($msg);
+        $process = $this->extractProcessSelection($msg, $bot);
 
-        if ($processId !== null) {
-            $process = $bot->processes()
-                ->where('is_current_version', true)
-                ->where('is_active', true)
-                ->where('processes.id', $processId)
-                ->first();
-
-            if (! $process) {
-                $adapter->sendMessage($msg->chatId, 'این فرآیند در دسترس نیست.');
-
-                return;
-            }
-
+        if ($process !== null) {
             $session = $this->sessionEngine->create($bot, $msg, $process);
 
             $field = $session->currentField;
@@ -69,8 +57,20 @@ class MessageDispatcher
         $this->formEngine->handleMessage($msg, $bot, $adapter);
     }
 
-    protected function extractProcessSelection(IncomingMessage $msg): ?string
+    protected function extractProcessSelection(IncomingMessage $msg, Bot $bot): ?Process
     {
+        $processes = $bot->processes()
+            ->where('is_current_version', true)
+            ->where('is_active', true);
+
+        if ($msg->platform === 'rubika') {
+            if ($msg->type !== 'text') {
+                return null;
+            }
+
+            return $processes->where('name', $msg->text)->first();
+        }
+
         if ($msg->type !== 'callback') {
             return null;
         }
@@ -79,7 +79,9 @@ class MessageDispatcher
             return null;
         }
 
-        return Str::after($msg->text, 'process:');
+        $processId = Str::after($msg->text, 'process:');
+
+        return $processes->where('processes.id', $processId)->first();
     }
 
     protected function extractAdminAction(IncomingMessage $msg): ?array

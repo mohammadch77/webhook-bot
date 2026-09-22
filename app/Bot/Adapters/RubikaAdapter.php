@@ -44,9 +44,10 @@ class RubikaAdapter implements BotAdapter
         $this->post('sendMessage', [
             'chat_id' => $chatId,
             'text' => $text,
-            'inline_keypad' => [
+            'chat_keypad' => [
                 'rows' => $rows,
             ],
+            'chat_keypad_type' => 'New',
         ]);
     }
 
@@ -106,14 +107,13 @@ class RubikaAdapter implements BotAdapter
 
         $message = $update['new_message'] ?? [];
         $chatId = (string) ($update['chat_id'] ?? '');
-        $buttonId = $message['aux_data']['button_id'] ?? null;
 
         return new IncomingMessage(
             chatId: $chatId,
             userId: (string) ($message['sender_id'] ?? $chatId),
             username: null,
-            text: $buttonId !== null ? (string) $buttonId : (string) ($message['text'] ?? ''),
-            type: $buttonId !== null ? 'callback' : 'text',
+            text: (string) ($message['text'] ?? ''),
+            type: 'text',
             platform: 'rubika',
             messageId: isset($message['message_id']) ? (string) $message['message_id'] : null,
         );
