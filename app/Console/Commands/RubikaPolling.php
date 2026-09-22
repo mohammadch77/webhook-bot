@@ -84,7 +84,6 @@ class RubikaPolling extends Command
             }
 
             $adapter = AdapterFactory::make($bot);
-            $lastUpdateId = $offsetId;
 
             Log::info('Rubika polling: adapter created, processing updates', ['bot' => $bot->name]);
 
@@ -106,17 +105,15 @@ class RubikaPolling extends Command
                         'error' => $e->getMessage(),
                     ]);
                 }
-
-                if (isset($update['update_id'])) {
-                    $lastUpdateId = (string) $update['update_id'];
-                }
             }
 
-            $nextOffset = $data['data']['next_offset_id'] ?? $lastUpdateId;
+            $nextOffset = $data['data']['next_offset_id'] ?? '';
 
-            Log::info('Rubika polling: saving offset', ['bot' => $bot->name, 'offset_id' => $nextOffset]);
+            if ($nextOffset) {
+                Log::info('Rubika polling: saving offset', ['bot' => $bot->name, 'offset_id' => $nextOffset]);
 
-            Cache::put($cacheKey, $nextOffset);
+                Cache::put($cacheKey, $nextOffset);
+            }
 
             Log::info('Rubika polling: pollBot finished', ['bot' => $bot->name]);
         } catch (\Throwable $e) {

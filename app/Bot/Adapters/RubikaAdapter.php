@@ -132,7 +132,7 @@ class RubikaAdapter implements BotAdapter
         }
     }
 
-    protected function post(string $method, array $body): array
+    protected function post(string $method, array $body, bool $isRetry = false): array
     {
         try {
             $response = Http::withHeaders([
@@ -141,6 +141,13 @@ class RubikaAdapter implements BotAdapter
             ])->post("https://botapi.rubika.ir/v3/{$this->token}/{$method}", $body);
 
             $data = $response->json();
+
+            if (($data['status'] ?? null) === 'TOO_REQUESTS' && ! $isRetry) {
+                Log::warning("Rubika {$method} rate limited, retrying in 5s");
+                sleep(5);
+
+                return $this->post($method, $body, true);
+            }
 
             Log::info("Rubika {$method} response", ['data' => $data]);
 
