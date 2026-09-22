@@ -30,6 +30,14 @@ class MessageDispatcher
             return;
         }
 
+        $session = $this->sessionEngine->getOrCreate($msg, $bot);
+
+        if ($session !== null) {
+            $this->formEngine->handleMessage($msg, $bot, $adapter);
+
+            return;
+        }
+
         $process = $this->extractProcessSelection($msg, $bot);
 
         if ($process !== null) {
