@@ -112,9 +112,11 @@ class RubikaPolling extends Command
                 }
             }
 
-            Log::info('Rubika polling: saving offset', ['bot' => $bot->name, 'offset_id' => $lastUpdateId]);
+            $nextOffset = $data['data']['next_offset_id'] ?? $lastUpdateId;
 
-            Cache::put($cacheKey, $lastUpdateId);
+            Log::info('Rubika polling: saving offset', ['bot' => $bot->name, 'offset_id' => $nextOffset]);
+
+            Cache::put($cacheKey, $nextOffset);
 
             Log::info('Rubika polling: pollBot finished', ['bot' => $bot->name]);
         } catch (\Throwable $e) {

@@ -102,6 +102,8 @@ class RubikaAdapter implements BotAdapter
         $update = $payload['update'] ?? $payload;
         $this->lastPayload = $update;
 
+        Log::info('Rubika parseIncoming: raw update', ['update' => $update]);
+
         $message = $update['new_message'] ?? [];
         $chatId = (string) ($update['chat_id'] ?? '');
         $buttonId = $message['aux_data']['button_id'] ?? null;
