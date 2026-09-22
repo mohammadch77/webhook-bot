@@ -7,10 +7,7 @@ use App\Bot\DTOs\IncomingMessage;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RubikaPhp\Core\Bot;
-use RubikaPhp\Enums\ButtonTypeEnum;
-use RubikaPhp\Models\Button;
 use RubikaPhp\Models\Keypad;
-use RubikaPhp\Models\KeypadRow;
 
 class RubikaAdapter implements BotAdapter
 {
@@ -25,21 +22,32 @@ class RubikaAdapter implements BotAdapter
 
     public function sendMessage(string $chatId, string $text): void
     {
-        $this->call(fn () => $this->client->chatId($chatId)->text($text)->sendMessage());
+        $this->post('sendMessage', [
+            'chat_id' => $chatId,
+            'text' => $text,
+        ]);
     }
 
     public function sendKeyboard(string $chatId, string $text, array $buttons): void
     {
         $rows = array_map(
-            fn (array $button) => new KeypadRow([
-                new Button($button['value'], ButtonTypeEnum::SIMPLE, $button['label']),
-            ]),
+            fn (array $button) => [
+                'buttons' => [[
+                    'id' => $button['value'],
+                    'type' => 'Simple',
+                    'button_text' => $button['label'],
+                ]],
+            ],
             $buttons,
         );
 
-        $keypad = new Keypad($rows);
-
-        $this->call(fn () => $this->client->chatId($chatId)->text($text)->inlineKeypad($keypad)->sendMessage());
+        $this->post('sendMessage', [
+            'chat_id' => $chatId,
+            'text' => $text,
+            'inline_keypad' => [
+                'rows' => $rows,
+            ],
+        ]);
     }
 
     public function editMessage(string $chatId, string $messageId, string $text): void
@@ -117,6 +125,26 @@ class RubikaAdapter implements BotAdapter
             Log::error('Rubika API call exception', [
                 'message' => $e->getMessage(),
             ]);
+
+            return [];
+        }
+    }
+
+    protected function post(string $method, array $body): array
+    {
+        try {
+            $response = Http::withHeaders([
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json',
+            ])->post("https://botapi.rubika.ir/v3/{$this->token}/{$method}", $body);
+
+            $data = $response->json();
+
+            Log::info("Rubika {$method} response", ['data' => $data]);
+
+            return $data ?? [];
+        } catch (\Throwable $e) {
+            Log::error("Rubika {$method} error", ['error' => $e->getMessage()]);
 
             return [];
         }
