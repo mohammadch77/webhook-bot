@@ -30,6 +30,30 @@ class MessageDispatcher
             return;
         }
 
+        if ($this->isCancelAction($msg)) {
+            $session = $this->sessionEngine->getOrCreate($msg, $bot);
+
+            if ($session !== null) {
+                $this->sessionEngine->stop($session);
+            }
+
+            $adapter->sendMessage($msg->chatId, 'فرآیند لغو شد.');
+
+            return;
+        }
+
+        if ($msg->text === '/start') {
+            $session = $this->sessionEngine->getOrCreate($msg, $bot);
+
+            if ($session !== null) {
+                $this->sessionEngine->stop($session);
+            }
+
+            $this->formEngine->showMainMenu($msg->chatId, $bot, $adapter);
+
+            return;
+        }
+
         $session = $this->sessionEngine->getOrCreate($msg, $bot);
 
         if ($session !== null) {
@@ -56,13 +80,16 @@ class MessageDispatcher
             return;
         }
 
-        if ($msg->text === '/start') {
-            $this->formEngine->showMainMenu($msg->chatId, $bot, $adapter);
+        $this->formEngine->handleMessage($msg, $bot, $adapter);
+    }
 
-            return;
+    protected function isCancelAction(IncomingMessage $msg): bool
+    {
+        if ($msg->platform === 'rubika') {
+            return $msg->text === 'لغو فرآیند';
         }
 
-        $this->formEngine->handleMessage($msg, $bot, $adapter);
+        return $msg->type === 'callback' && $msg->text === 'cancel_process';
     }
 
     protected function extractProcessSelection(IncomingMessage $msg, Bot $bot): ?Process

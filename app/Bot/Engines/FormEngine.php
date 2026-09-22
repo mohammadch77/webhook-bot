@@ -138,6 +138,8 @@ class FormEngine
             ->map(fn (Process $process) => ['value' => "process:{$process->id}", 'label' => $process->name])
             ->all();
 
+        $buttons[] = ['value' => 'cancel_process', 'label' => 'لغو فرآیند'];
+
         $adapter->sendKeyboard($chatId, 'لطفاً یکی از فرآیندهای زیر را انتخاب کنید:', $buttons);
     }
 }

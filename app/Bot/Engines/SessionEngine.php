@@ -10,11 +10,26 @@ use App\Models\Submission;
 
 class SessionEngine
 {
+    protected const EXPIRY_MINUTES = 30;
+
     public function getOrCreate(IncomingMessage $msg, Bot $bot): ?ConversationSession
     {
-        return ConversationSession::where('bot_id', $bot->id)
+        $session = ConversationSession::where('bot_id', $bot->id)
             ->where('external_user_id', $msg->chatId)
             ->first();
+
+        if (! $session) {
+            return null;
+        }
+
+        if ($session->last_activity_at && $session->last_activity_at->lt(now()->subMinutes(self::EXPIRY_MINUTES))) {
+            $session->submission()->update(['status' => 'expired']);
+            $session->delete();
+
+            return null;
+        }
+
+        return $session;
     }
 
     public function create(Bot $bot, IncomingMessage $msg, Process $process): ConversationSession
@@ -65,6 +80,15 @@ class SessionEngine
     {
         $session->submission()->update([
             'status' => 'expired',
+        ]);
+
+        $session->delete();
+    }
+
+    public function stop(ConversationSession $session): void
+    {
+        $session->submission()->update([
+            'status' => 'stopped',
         ]);
 
         $session->delete();
