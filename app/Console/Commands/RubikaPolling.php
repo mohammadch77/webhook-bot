@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 
 class RubikaPolling extends Command
 {
-    protected $signature = 'rubika:poll';
+    protected $signature = 'bot:rubika';
 
     protected $description = 'Poll Rubika bot for new messages';
 
