@@ -135,6 +135,8 @@ class RubikaAdapter implements BotAdapter
     protected function post(string $method, array $body, bool $isRetry = false): array
     {
         try {
+            sleep(2);
+
             $response = Http::withHeaders([
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
@@ -142,9 +144,15 @@ class RubikaAdapter implements BotAdapter
 
             $data = $response->json();
 
-            if (($data['status'] ?? null) === 'TOO_REQUESTS' && ! $isRetry) {
-                Log::warning("Rubika {$method} rate limited, retrying in 5s");
-                sleep(5);
+            if (($data['status'] ?? null) === 'TOO_REQUESTS') {
+                if ($isRetry) {
+                    Log::error("Rubika {$method} rate limited after retry, dropping message");
+
+                    return [];
+                }
+
+                Log::warning("Rubika {$method} rate limited, retrying in 30s");
+                sleep(30);
 
                 return $this->post($method, $body, true);
             }
