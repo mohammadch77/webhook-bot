@@ -30,7 +30,7 @@ class RubikaPolling extends Command
                 $this->pollBot($bot, $dispatcher);
             }
 
-            sleep(5);
+            sleep(10);
         }
     }
 
@@ -41,6 +41,8 @@ class RubikaPolling extends Command
         try {
             $offsetId = Cache::get($cacheKey, '');
 
+            Log::info('Rubika polling: checking updates', ['bot' => $bot->name]);
+
             $response = Http::withHeaders([
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
@@ -50,8 +52,16 @@ class RubikaPolling extends Command
             );
 
             $data = $response->json();
+            $status = strtoupper($data['status'] ?? '');
 
-            if (! isset($data['status']) || strtoupper($data['status']) !== 'OK') {
+            if (str_contains($status, 'TOO_REQUESTS') || str_contains((string) $response->body(), 'TOO_REQUESTS')) {
+                Log::warning('Rubika rate limited, waiting 60s');
+                sleep(60);
+
+                return;
+            }
+
+            if ($status !== 'OK') {
                 return;
             }
 
@@ -84,8 +94,8 @@ class RubikaPolling extends Command
             Cache::put($cacheKey, $lastUpdateId);
         } catch (\Throwable $e) {
             if (str_contains($e->getMessage(), 'TOO_REQUESTS')) {
-                Log::warning('Rubika rate limited, waiting 30s');
-                sleep(30);
+                Log::warning('Rubika rate limited, waiting 60s');
+                sleep(60);
 
                 return;
             }
